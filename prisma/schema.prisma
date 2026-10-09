@@ -1,0 +1,170 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role { PLATFORM_ADMIN COMPANY_ADMIN AGENT }
+enum ConnectionStatus { DISCONNECTED QR_PENDING CONNECTED RECONNECTING }
+enum ConversationStatus { BOT_WAITING HUMAN_WAITING HUMAN_ACTIVE CLOSED }
+enum MessageDirection { INBOUND OUTBOUND }
+enum MessageKind { TEXT IMAGE DOCUMENT AUDIO SYSTEM }
+
+model Company {
+  id           String         @id @default(cuid())
+  name         String
+  slug         String         @unique
+  createdAt    DateTime       @default(now())
+  users        User[]
+  sectors      Sector[]
+  contacts     Contact[]
+  conversations Conversation[]
+  messages     Message[]
+  connections  WhatsAppConnection[]
+  botConfig    BotConfig?
+}
+
+model User {
+  id        String   @id @default(cuid())
+  companyId String?
+  company   Company? @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  name      String
+  email     String   @unique
+  passwordHash String
+  role      Role     @default(AGENT)
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  assignedConversations Conversation[] @relation("AssignedUser")
+  notes     InternalNote[]
+}
+
+model Sector {
+  id        String @id @default(cuid())
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  name      String
+  color     String @default("#8AFF80")
+  conversations Conversation[]
+  @@unique([companyId, name])
+}
+
+model WhatsAppConnection {
+  id        String @id @default(cuid())
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  label     String
+  jid       String?
+  status    ConnectionStatus @default(DISCONNECTED)
+  lastError String?
+  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now())
+  sessions  AuthSession[]
+  messages  Message[]
+  @@unique([companyId, label])
+}
+
+model AuthSession {
+  id           String @id @default(cuid())
+  connectionId String
+  connection   WhatsAppConnection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+  key         String
+  value       Json
+  updatedAt   DateTime @updatedAt
+  @@unique([connectionId, key])
+}
+
+model Contact {
+  id           String @id @default(cuid())
+  companyId    String
+  company      Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  remoteJid    String
+  name         String
+  phone        String?
+  email        String?
+  labels       String[]
+  notes        String?
+  conversations Conversation[]
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  @@unique([companyId, remoteJid])
+}
+
+model Conversation {
+  id            String @id @default(cuid())
+  companyId     String
+  company       Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  contactId     String
+  contact       Contact @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  assignedUserId String?
+  assignedUser  User? @relation("AssignedUser", fields: [assignedUserId], references: [id])
+  sectorId      String?
+  sector        Sector? @relation(fields: [sectorId], references: [id])
+  status        ConversationStatus @default(BOT_WAITING)
+  botStep       String?
+  botStepExpiresAt DateTime?
+  unreadCount   Int @default(0)
+  lastMessageAt DateTime @default(now())
+  messages      Message[]
+  notes         InternalNote[]
+  events        ConversationEvent[]
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  @@index([companyId, status, lastMessageAt])
+}
+
+model Message {
+  id             String @id @default(cuid())
+  companyId      String
+  conversationId String
+  connectionId   String
+  company        Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  connection     WhatsAppConnection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+  providerId     String
+  direction      MessageDirection
+  kind           MessageKind @default(TEXT)
+  body           String?
+  mediaUrl       String?
+  senderJid      String
+  status         String @default("pending")
+  createdAt      DateTime @default(now())
+  @@unique([connectionId, providerId])
+  @@index([conversationId, createdAt])
+}
+
+model InternalNote {
+  id             String @id @default(cuid())
+  conversationId String
+  authorId       String
+  body           String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  author         User @relation(fields: [authorId], references: [id])
+  createdAt      DateTime @default(now())
+}
+
+model ConversationEvent {
+  id             String @id @default(cuid())
+  conversationId String
+  type           String
+  payload        Json?
+  createdAt      DateTime @default(now())
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+}
+
+model BotConfig {
+  id             String @id @default(cuid())
+  companyId      String @unique
+  company        Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  enabled        Boolean @default(true)
+  welcomeMessage String @default("Olá! Como podemos ajudar?")
+  fallbackMessage String @default("Não entendi. Escolha uma opção do menu para continuar.")
+  afterHoursMessage String @default("Estamos fora do horário. Retornaremos em breve.")
+  menu           Json
+  businessHours  Json
+  timezone       String @default("America/Sao_Paulo")
+  stepTtlMinutes Int @default(30)
+  updatedAt      DateTime @updatedAt
+}

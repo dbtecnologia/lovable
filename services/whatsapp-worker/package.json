@@ -1,0 +1,7 @@
+{
+  "name": "@botzap/whatsapp-worker",
+  "private": true,
+  "scripts": { "dev": "tsx watch src/index.ts", "build": "tsc -p tsconfig.json", "start": "node dist/index.js" },
+  "dependencies": { "@hapi/boom": "^10.0.1", "@whiskeysockets/baileys": "^7.0.0-rc.6", "pino": "^9.6.0", "qrcode": "^1.5.4" },
+  "devDependencies": { "@types/node": "^22.10.5", "typescript": "^5.7.3", "tsx": "^4.19.2" }
+}

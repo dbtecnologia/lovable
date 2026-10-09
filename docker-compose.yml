@@ -1,0 +1,48 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: botzap
+      POSTGRES_PASSWORD: botzap
+      POSTGRES_DB: botzap
+    ports:
+      - "5432:5432"
+    volumes:
+      - botzap-postgres:/var/lib/postgresql/data
+
+  api:
+    build: ./services/api
+    environment:
+      DATABASE_URL: postgresql://botzap:botzap@postgres:5432/botzap?schema=public
+      API_PORT: 4000
+      JWT_SECRET: ${JWT_SECRET}
+    ports:
+      - "4000:4000"
+    depends_on:
+      - postgres
+
+  whatsapp-worker:
+    build: ./services/whatsapp-worker
+    environment:
+      DATABASE_URL: postgresql://botzap:botzap@postgres:5432/botzap?schema=public
+      API_URL: http://api:4000
+      SESSION_ROOT: /data/whatsapp-sessions
+    volumes:
+      - botzap-sessions:/data/whatsapp-sessions
+    depends_on:
+      - postgres
+      - api
+
+  web:
+    build: ./apps/web
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:4000
+      NEXT_PUBLIC_WS_URL: ws://localhost:4000/ws
+    ports:
+      - "3000:3000"
+    depends_on:
+      - api
+
+volumes:
+  botzap-postgres:
+  botzap-sessions:

@@ -1,0 +1,12 @@
+node_modules
+.next
+dist
+coverage
+.env
+.env.local
+.env.*
+!.env.example
+prisma/dev.db
+services/whatsapp-worker/sessions
+*.log
+

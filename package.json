@@ -1,0 +1,14 @@
+{
+  "name": "botzap-saas",
+  "private": true,
+  "workspaces": ["apps/*", "services/*", "packages/*"],
+  "scripts": {
+    "dev": "concurrently \"npm run dev -w apps/web\" \"npm run dev -w services/api\" \"npm run dev -w services/whatsapp-worker\"",
+    "build": "npm run build -w apps/web && npm run build -w services/api && npm run build -w services/whatsapp-worker",
+    "test": "npm run test -w services/api"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2",
+    "typescript": "^5.7.3"
+  }
+}

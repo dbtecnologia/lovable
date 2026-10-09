@@ -1,0 +1,24 @@
+name: Quality
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@1e60f620b9541dca2b7b3c1b5b8e5f7cf47f3ad
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm install
+      - run: npm run build -w apps/web
+      - run: npm test -w services/api
