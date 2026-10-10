@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Botzap · Central de atendimento",
-  description: "Atendimento WhatsApp para times que precisam de contexto."
+  title: "Brito · Central de atendimento",
+  description: "Central de atendimento WhatsApp da Brito."
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
