@@ -1,11 +1,11 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Archive, Bell, Bot, Check, ChevronDown, CircleHelp, Clock3, Ellipsis, FileText,
   Headphones, Image, Inbox, LayoutDashboard, LockKeyhole, Menu, MessageSquare,
   MoreHorizontal, Paperclip, Phone, Plus, Radio, Search, Send, Settings2,
-  Sparkles, Tag, UserRound, Users, Wifi, X, Zap
+  Sparkles, Tag, UserRound, UserPlus, Users, Wifi, X, Zap, Save, SlidersHorizontal
 } from "lucide-react";
 
 type ConversationStatus = "Bot ativo" | "Aguardando humano" | "Humano" | "Finalizado";
@@ -14,6 +14,7 @@ type Conversation = {
   unread: number; status: ConversationStatus; labels: string[]; phone: string; online?: boolean;
 };
 type Message = { id: number; text: string; time: string; from: "them" | "me" | "system"; kind?: string };
+type ContactRecord = { id: number; name: string; phone: string; email: string; company: string; status: "Ativo" | "Inativo"; tags: string[]; lastInteraction: string };
 
 const initialConversations: Conversation[] = [
   { id: 1, name: "Marina Costa", initials: "MC", color: "coral", preview: "Perfeito, aguardo o orçamento então", time: "10:42", unread: 2, status: "Aguardando humano", labels: ["novo lead", "comercial"], phone: "+55 11 99841-2033", online: true },
@@ -40,6 +41,13 @@ const initialMessages: Record<number, Message[]> = {
 const navItems = [
   { label: "Visão geral", icon: LayoutDashboard }, { label: "Atendimento", icon: Inbox, count: 12 },
   { label: "Automação", icon: Bot }, { label: "Contatos", icon: Users }, { label: "Relatórios", icon: Radio }
+];
+
+const initialContacts: ContactRecord[] = [
+  { id: 1, name: "Marina Costa", phone: "+55 11 99841-2033", email: "marina@exemplo.com", company: "Marina Costa", status: "Ativo", tags: ["novo lead", "comercial"], lastInteraction: "Hoje, 10:42" },
+  { id: 2, name: "Rafael Mendes", phone: "+55 11 98871-4410", email: "rafael@exemplo.com", company: "Rafael Mendes", status: "Ativo", tags: ["pedido"], lastInteraction: "Hoje, 10:31" },
+  { id: 3, name: "Clínica Aurora", phone: "+55 21 99834-1091", email: "contato@clinicaaurora.com", company: "Clínica Aurora", status: "Ativo", tags: ["financeiro"], lastInteraction: "Hoje, 09:58" },
+  { id: 4, name: "João Victor", phone: "+55 31 99770-2844", email: "joao@exemplo.com", company: "João Victor", status: "Inativo", tags: ["suporte"], lastInteraction: "Ontem, 18:12" }
 ];
 
 export default function Home() {
@@ -76,16 +84,16 @@ export default function Home() {
   return <main className="app-shell">
     <aside className="sidebar">
       <div className="brand"><div className="brand-mark"><span /></div><span>botzap</span><small>OPERATIONS</small></div>
-      <div className="workspace-switcher"><div className="company-avatar">A</div><div><strong>Brito</strong><span>Workspace principal</span></div><ChevronDown size={15} /></div>
+      <div className="workspace-switcher"><div className="company-avatar">A</div><div><strong>Acme Serviços</strong><span>Workspace principal</span></div><ChevronDown size={15} /></div>
       <nav className="main-nav">{navItems.map(({ label, icon: Icon, count }) => <button key={label} className={activeNav === label ? "nav-item active" : "nav-item"} onClick={() => setActiveNav(label)}><Icon size={17} strokeWidth={1.8} /><span>{label}</span>{count && <em>{count}</em>}</button>)}</nav>
       <div className="sidebar-section-label">Workspace</div>
-      <nav className="main-nav"><button className="nav-item"><Settings2 size={17} /><span>Configurações</span></button><button className="nav-item"><CircleHelp size={17} /><span>Ajuda e atalhos</span><kbd>?</kbd></button></nav>
+      <nav className="main-nav"><button className={activeNav === "Configurações" ? "nav-item active" : "nav-item"} onClick={() => setActiveNav("Configurações")}><Settings2 size={17} /><span>Configurações</span></button><button className="nav-item" onClick={() => notify("Atalhos: use Enter para enviar e ⌘ K para buscar")}><CircleHelp size={17} /><span>Ajuda e atalhos</span><kbd>?</kbd></button></nav>
       <div className="sidebar-bottom"><div className="plan-chip"><div className="plan-icon"><Zap size={14} /></div><div><span>Plano atual</span><strong>Pro · 18 dias restantes</strong></div><ChevronDown size={14} /></div><div className="user-row"><div className="avatar avatar-user">LF</div><div><strong>Lucas Ferreira</strong><span>Administrador</span></div><MoreHorizontal size={17} /></div></div>
     </aside>
 
     <section className="main-area">
       <header className="topbar"><div className="breadcrumbs"><button className="mobile-menu"><Menu size={20} /></button><span>Workspace</span><b>/</b><strong>{activeNav}</strong></div><div className="top-actions"><div className="system-status"><i className="pulse-dot" /> WhatsApp conectado <span>+55 11 4004-2024</span></div><button className="icon-button" aria-label="Notificações"><Bell size={18} /><i className="notification-dot" /></button><div className="avatar avatar-user">LF</div></div></header>
-      {activeNav !== "Atendimento" ? activeNav === "Visão geral" ? <OverviewPage /> : activeNav === "Automação" ? <AutomationPage onBack={() => setActiveNav("Atendimento")} /> : <PlaceholderPage activeNav={activeNav} onBack={() => setActiveNav("Atendimento")} /> : <div className="workspace-grid">
+      {activeNav !== "Atendimento" ? activeNav === "Visão geral" ? <OverviewPage /> : activeNav === "Automação" ? <AutomationPage onBack={() => setActiveNav("Atendimento")} /> : activeNav === "Contatos" ? <ContactsPage onBack={() => setActiveNav("Atendimento")} notify={notify} /> : activeNav === "Configurações" ? <SettingsPage onBack={() => setActiveNav("Atendimento")} notify={notify} openQr={() => setShowQr(true)} /> : <PlaceholderPage activeNav={activeNav} onBack={() => setActiveNav("Atendimento")} /> : <div className="workspace-grid">
         <section className={`conversation-panel ${mobilePanel === "list" ? "mobile-visible" : ""}`}>
           <div className="panel-heading"><div><h1>Atendimento</h1><p>12 conversas precisam de atenção</p></div><button className="new-button" onClick={() => notify("Nova conversa: selecione um contato para começar")}><Plus size={16} /> Nova</button></div>
           <div className="search-box"><Search size={16} /><input placeholder="Buscar conversas" value={query} onChange={(event) => setQuery(event.target.value)} /><kbd>⌘ K</kbd></div>
@@ -120,6 +128,57 @@ function MessageBubble({ message }: { message: Message }) {
   return <div className={message.from === "me" ? "message-row mine" : "message-row"}><div className="bubble">{message.text.split("\n").map((line, index) => <span key={`${message.id}-${index}`}>{line}{index < message.text.split("\n").length - 1 && <br />}</span>)}<div className="message-meta"><time>{message.time}</time>{message.from === "me" && <Check size={13} />}</div></div></div>;
 }
 
+function ContactsPage({ onBack, notify }: { onBack: () => void; notify: (message: string) => void }) {
+  const [contacts, setContacts] = useState<ContactRecord[]>(initialContacts);
+  const [query, setQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState<"Todos" | "Ativo" | "Inativo">("Todos");
+  const [selectedId, setSelectedId] = useState(1);
+  const [editing, setEditing] = useState<ContactRecord | null>(null);
+  const [form, setForm] = useState({ name: "", phone: "", email: "", company: "" });
+
+  useEffect(() => {
+    const saved = window.localStorage.getItem("botzap-contacts");
+    if (saved) setContacts(JSON.parse(saved));
+  }, []);
+
+  function persist(next: ContactRecord[]) {
+    setContacts(next);
+    window.localStorage.setItem("botzap-contacts", JSON.stringify(next));
+  }
+  function openNew() { setEditing({ id: 0, name: "", phone: "", email: "", company: "", status: "Ativo", tags: ["novo contato"], lastInteraction: "Ainda não" }); setForm({ name: "", phone: "", email: "", company: "" }); }
+  function openEdit(contact: ContactRecord) { setEditing(contact); setForm({ name: contact.name, phone: contact.phone, email: contact.email, company: contact.company }); }
+  function saveContact() {
+    if (!form.name.trim() || !form.phone.trim()) return notify("Informe pelo menos nome e telefone");
+    const nextContact = { ...(editing as ContactRecord), ...form, name: form.name.trim(), phone: form.phone.trim(), email: form.email.trim(), company: form.company.trim() || form.name.trim() };
+    const next = editing?.id ? contacts.map((contact) => contact.id === editing.id ? nextContact : contact) : [{ ...nextContact, id: Date.now(), lastInteraction: "Agora" }, ...contacts];
+    persist(next); setSelectedId(nextContact.id); setEditing(null); notify(editing?.id ? "Contato atualizado" : "Contato adicionado");
+  }
+  function removeContact() {
+    if (!editing?.id) return;
+    persist(contacts.filter((contact) => contact.id !== editing.id)); setEditing(null); notify("Contato removido");
+  }
+  const visible = contacts.filter((contact) => `${contact.name} ${contact.phone} ${contact.email} ${contact.company}`.toLowerCase().includes(query.toLowerCase()) && (statusFilter === "Todos" || contact.status === statusFilter));
+  const selected = contacts.find((contact) => contact.id === selectedId) ?? visible[0];
+
+  return <div className="directory-page"><div className="directory-heading"><div><span className="eyebrow">BASE DE RELACIONAMENTO</span><h1>Contatos</h1><p>Organize clientes e mantenha o contexto de cada conversa.</p></div><div className="directory-actions"><button className="secondary-button" onClick={onBack}>Ver atendimento</button><button className="save-button" onClick={openNew}><UserPlus size={14} /> Novo contato</button></div></div><div className="contacts-layout"><section className="directory-list-card"><div className="directory-toolbar"><div className="directory-search"><Search size={15} /><input aria-label="Buscar contatos" placeholder="Buscar por nome, telefone ou empresa" value={query} onChange={(event) => setQuery(event.target.value)} /></div><button className="filter-button" onClick={() => setStatusFilter(statusFilter === "Todos" ? "Ativo" : statusFilter === "Ativo" ? "Inativo" : "Todos")}><SlidersHorizontal size={14} /> {statusFilter}</button></div><div className="directory-summary"><strong>{visible.length} contatos</strong><span>atualizados pelo time Brito</span></div><div className="directory-list">{visible.map((contact) => <button key={contact.id} className={selected?.id === contact.id ? "directory-row selected" : "directory-row"} onClick={() => setSelectedId(contact.id)}><div className="avatar avatar-green">{contact.name.split(" ").map((part) => part[0]).join("").slice(0, 2).toUpperCase()}</div><div><strong>{contact.name}</strong><span>{contact.phone}</span></div><em className={contact.status === "Ativo" ? "active-status" : "inactive-status"}>{contact.status}</em><ChevronDown size={15} className="directory-arrow" /></button>)}{visible.length === 0 && <div className="empty-directory"><Users size={22} /><strong>Nenhum contato encontrado</strong><span>Ajuste a busca ou cadastre um novo contato.</span></div>}</div></section><aside className="contact-detail-card">{selected ? <><div className="detail-card-heading"><span className="eyebrow">PERFIL DO CONTATO</span><button className="icon-button" aria-label="Editar contato" onClick={() => openEdit(selected)}><Settings2 size={16} /></button></div><div className="contact-detail-hero"><div className="avatar avatar-coral avatar-large">{selected.name.split(" ").map((part) => part[0]).join("").slice(0, 2).toUpperCase()}</div><h2>{selected.name}</h2><p>{selected.company}</p><div className="contact-actions"><button onClick={() => notify("Conversa aberta no atendimento")}><MessageSquare size={15} /> Mensagem</button><button onClick={() => openEdit(selected)}>Editar</button></div></div><div className="contact-detail-fields"><div><span>Telefone</span><strong>{selected.phone}</strong></div><div><span>E-mail</span><strong>{selected.email || "Não informado"}</strong></div><div><span>Última interação</span><strong>{selected.lastInteraction}</strong></div><div><span>Etiquetas</span><div className="tags">{selected.tags.map((tag) => <span className="tag" key={tag}>{tag}</span>)}</div></div></div></> : <div className="empty-directory"><Users size={22} /><strong>Selecione um contato</strong></div>}</aside></div>{editing && <div className="modal-backdrop" onClick={() => setEditing(null)}><div className="edit-contact-modal" onClick={(event) => event.stopPropagation()}><div className="modal-heading"><div><span className="eyebrow">{editing.id ? "EDITAR CONTATO" : "NOVO CONTATO"}</span><h2>{editing.id ? "Atualizar dados" : "Adicionar contato"}</h2></div><button className="icon-button" onClick={() => setEditing(null)}><X size={18} /></button></div><div className="contact-form"><label>Nome<input autoFocus value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} placeholder="Nome do cliente" /></label><label>Telefone<input value={form.phone} onChange={(event) => setForm({ ...form, phone: event.target.value })} placeholder="+55 11 99999-9999" /></label><label>E-mail<input type="email" value={form.email} onChange={(event) => setForm({ ...form, email: event.target.value })} placeholder="cliente@empresa.com" /></label><label>Empresa<input value={form.company} onChange={(event) => setForm({ ...form, company: event.target.value })} placeholder="Nome da empresa" /></label></div><div className="modal-footer"><button className="danger-button" onClick={removeContact}>{editing.id ? "Excluir" : "Cancelar"}</button><button className="save-button" onClick={saveContact}><Save size={14} /> Salvar contato</button></div></div></div>}</div>;
+}
+
+function SettingsPage({ onBack, notify, openQr }: { onBack: () => void; notify: (message: string) => void; openQr: () => void }) {
+  const [tab, setTab] = useState("Workspace");
+  const [saved, setSaved] = useState(false);
+  const [workspaceName, setWorkspaceName] = useState("Brito");
+  const [phone, setPhone] = useState("+55 11 4004-2024");
+  const [email, setEmail] = useState("lucas@brito.com.br");
+  const [notifications, setNotifications] = useState(true);
+  const [autoAssign, setAutoAssign] = useState(true);
+  useEffect(() => {
+    const savedSettings = window.localStorage.getItem("botzap-settings");
+    if (savedSettings) { const data = JSON.parse(savedSettings); setWorkspaceName(data.workspaceName ?? "Brito"); setPhone(data.phone ?? "+55 11 4004-2024"); setEmail(data.email ?? "lucas@brito.com.br"); setNotifications(data.notifications ?? true); setAutoAssign(data.autoAssign ?? true); }
+  }, []);
+  function saveSettings() { window.localStorage.setItem("botzap-settings", JSON.stringify({ workspaceName, phone, email, notifications, autoAssign })); setSaved(true); notify("Configurações salvas com sucesso"); window.setTimeout(() => setSaved(false), 2200); }
+  return <div className="settings-page"><div className="settings-heading"><div><span className="eyebrow">ADMINISTRAÇÃO DO WORKSPACE</span><h1>Configurações</h1><p>Controle a identidade, a conexão e o comportamento da operação Brito.</p></div><div className="settings-actions"><button className="secondary-button" onClick={onBack}>Voltar</button><button className="save-button" onClick={saveSettings}>{saved ? <><Check size={14} /> Salvo</> : <><Save size={14} /> Salvar alterações</>}</button></div></div><div className="settings-shell"><nav className="settings-menu">{["Workspace", "WhatsApp", "Notificações", "Equipe"].map((item) => <button key={item} className={tab === item ? "selected" : ""} onClick={() => setTab(item)}><Settings2 size={15} />{item}</button>)}</nav><section className="settings-content">{tab === "Workspace" && <><div className="settings-section-title"><div><h2>Identidade do workspace</h2><p>Esses dados aparecem para o time e nos canais internos.</p></div><div className="settings-status"><i /> Ativo</div></div><div className="settings-form-grid"><label>Nome da empresa<input value={workspaceName} onChange={(event) => setWorkspaceName(event.target.value)} /></label><label>Telefone principal<input value={phone} onChange={(event) => setPhone(event.target.value)} /></label><label className="full-width">E-mail administrativo<input type="email" value={email} onChange={(event) => setEmail(event.target.value)} /></label></div><div className="settings-preview"><div className="company-avatar">B</div><div><strong>{workspaceName || "Seu workspace"}</strong><span>Workspace principal · Plano Pro</span></div><Check size={16} /></div></>}{tab === "WhatsApp" && <><div className="settings-section-title"><div><h2>Conexão do WhatsApp</h2><p>Gerencie o número usado para atender seus clientes.</p></div><div className="settings-status"><i /> Conectado</div></div><div className="whatsapp-connection"><div className="connection-logo"><Wifi size={20} /></div><div><strong>{workspaceName} Atendimento</strong><span>{phone}</span><small>Última sincronização: agora</small></div><button className="secondary-button" onClick={openQr}>Trocar número</button></div><div className="settings-callout"><LockKeyhole size={16} /><div><strong>Conexão protegida</strong><span>O pareamento é feito pelo QR Code do WhatsApp. Nenhuma senha fica salva no navegador.</span></div></div></>}{tab === "Notificações" && <><div className="settings-section-title"><div><h2>Preferências de notificação</h2><p>Escolha quando o time deve ser avisado.</p></div></div><div className="settings-option"><div><strong>Novas conversas</strong><span>Avisar quando uma conversa chegar ao atendimento.</span></div><Toggle checked={notifications} onChange={setNotifications} /></div><div className="settings-option"><div><strong>Distribuição automática</strong><span>Enviar novas conversas para o atendente disponível.</span></div><Toggle checked={autoAssign} onChange={setAutoAssign} /></div></>}{tab === "Equipe" && <><div className="settings-section-title"><div><h2>Membros da equipe</h2><p>Gerencie quem pode atender pelo workspace.</p></div><button className="secondary-button" onClick={() => notify("Convite copiado para a área de transferência")}>Convidar membro</button></div><div className="team-row"><div className="avatar avatar-user">LF</div><div><strong>Lucas Ferreira</strong><span>Administrador · acesso total</span></div><em>Ativo</em></div></>}</section></div></div>;
+}
+
 function PlaceholderPage({ activeNav, onBack }: { activeNav: string; onBack: () => void }) {
   const details: Record<string, { icon: typeof Bot; title: string; description: string }> = { "Visão geral": { icon: LayoutDashboard, title: "Visão geral", description: "Os sinais do seu atendimento, em um só lugar." }, Automação: { icon: Bot, title: "Automação", description: "Desenhe caminhos que resolvem antes de virar fila." }, Contatos: { icon: Users, title: "Contatos", description: "A memória de cada conversa com seus clientes." }, Relatórios: { icon: Radio, title: "Relatórios", description: "Veja onde seu time ganha tempo e onde perde contexto." } };
   const info = details[activeNav] ?? details["Visão geral"]; const Icon = info.icon;
@@ -128,7 +187,7 @@ function PlaceholderPage({ activeNav, onBack }: { activeNav: string; onBack: () 
 
 function OverviewPage() {
   const bars = [34, 48, 41, 67, 54, 78, 72, 91, 64, 83, 76, 88];
-  return <div className="overview-page"><div className="overview-heading"><div><span className="eyebrow">QUARTA, 09 DE OUTUBRO</span><h1>Bom dia, Lucas.</h1><p>O atendimento está respirando bem hoje.</p></div><button className="date-filter"><Clock3 size={14} /> Últimos 7 dias <ChevronDown size={14} /></button></div><div className="metric-grid"><MetricCard label="Conversas abertas" value="28" delta="+12,5%" note="vs. período anterior" icon={<MessageSquare size={16} />} tone="green" /><MetricCard label="Aguardando cliente" value="07" delta="-8,3%" note="vs. período anterior" icon={<Clock3 size={16} />} tone="yellow" /><MetricCard label="Finalizadas" value="142" delta="+18,2%" note="vs. período anterior" icon={<Check size={16} />} tone="lilac" /><MetricCard label="1ª resposta humana" value="04:12" delta="-21s" note="tempo médio" icon={<Zap size={16} />} tone="blue" /></div><div className="overview-grid"><section className="chart-card"><div className="card-heading"><div><h2>Volume de mensagens</h2><p>Recebidas e enviadas por hora</p></div><div className="chart-legend"><span><i className="legend-received" /> Recebidas</span><span><i className="legend-sent" /> Enviadas</span></div></div><div className="bar-chart">{bars.map((height, index) => <div className="bar-group" key={index}><div className="bar-pair"><i className="bar-received" style={{ height: `${height}%` }} /><i className="bar-sent" style={{ height: `${Math.max(18, height - 22)}%` }} /></div><span>{`${8 + index}h`}</span></div>)}</div></section><section className="connection-card"><div className="card-heading"><div><h2>Conexões</h2><p>Estado dos números ativos</p></div><button className="card-action">Gerenciar</button></div><div className="connection-item"><div className="connection-logo"><Wifi size={17} /></div><div><strong>Brito</strong><span>+55 11 4004-2024</span></div><em><i /> conectado</em></div><div className="connection-item muted"><div className="connection-logo"><Wifi size={17} /></div><div><strong>Brito Suporte</strong><span>aguardando pareamento</span></div><em>QR Code</em></div><div className="mini-insight"><Sparkles size={14} /><span><strong>O bot resolveu 64%</strong> das conversas sem intervenção humana.</span></div></section></div></div>;
+  return <div className="overview-page"><div className="overview-heading"><div><span className="eyebrow">QUARTA, 09 DE OUTUBRO</span><h1>Bom dia, Lucas.</h1><p>O atendimento está respirando bem hoje.</p></div><button className="date-filter"><Clock3 size={14} /> Últimos 7 dias <ChevronDown size={14} /></button></div><div className="metric-grid"><MetricCard label="Conversas abertas" value="28" delta="+12,5%" note="vs. período anterior" icon={<MessageSquare size={16} />} tone="green" /><MetricCard label="Aguardando cliente" value="07" delta="-8,3%" note="vs. período anterior" icon={<Clock3 size={16} />} tone="yellow" /><MetricCard label="Finalizadas" value="142" delta="+18,2%" note="vs. período anterior" icon={<Check size={16} />} tone="lilac" /><MetricCard label="1ª resposta humana" value="04:12" delta="-21s" note="tempo médio" icon={<Zap size={16} />} tone="blue" /></div><div className="overview-grid"><section className="chart-card"><div className="card-heading"><div><h2>Volume de mensagens</h2><p>Recebidas e enviadas por hora</p></div><div className="chart-legend"><span><i className="legend-received" /> Recebidas</span><span><i className="legend-sent" /> Enviadas</span></div></div><div className="bar-chart">{bars.map((height, index) => <div className="bar-group" key={index}><div className="bar-pair"><i className="bar-received" style={{ height: `${height}%` }} /><i className="bar-sent" style={{ height: `${Math.max(18, height - 22)}%` }} /></div><span>{`${8 + index}h`}</span></div>)}</div></section><section className="connection-card"><div className="card-heading"><div><h2>Conexões</h2><p>Estado dos números ativos</p></div><button className="card-action">Gerenciar</button></div><div className="connection-item"><div className="connection-logo"><Wifi size={17} /></div><div><strong>Acme Serviços</strong><span>+55 11 4004-2024</span></div><em><i /> conectado</em></div><div className="connection-item muted"><div className="connection-logo"><Wifi size={17} /></div><div><strong>Acme Suporte</strong><span>aguardando pareamento</span></div><em>QR Code</em></div><div className="mini-insight"><Sparkles size={14} /><span><strong>O bot resolveu 64%</strong> das conversas sem intervenção humana.</span></div></section></div></div>;
 }
 
 function MetricCard({ label, value, delta, note, icon, tone }: { label: string; value: string; delta: string; note: string; icon: React.ReactNode; tone: string }) {
@@ -149,3 +208,4 @@ function Toggle({ checked, onChange }: { checked: boolean; onChange: (value: boo
 function QrModal({ close }: { close: () => void }) {
   return <div className="modal-backdrop" onClick={close}><div className="qr-modal" onClick={(event) => event.stopPropagation()}><header><div><span className="eyebrow">CONEXÃO WHATSAPP</span><h2>Parear um novo número</h2></div><button className="icon-button" onClick={close}><X size={18} /></button></header><div className="qr-layout"><div className="fake-qr"><div className="qr-corner one" /><div className="qr-corner two" /><div className="qr-corner three" /><div className="qr-noise">▦ ▪ ▦ ▪<br />▪ ▦ ▪ ▦<br />▦ ▪ ▦ ▪</div></div><div className="qr-instructions"><div className="step"><b>1</b><span>Abra o WhatsApp no seu celular</span></div><div className="step"><b>2</b><span>Toque em <strong>Configurações → Aparelhos conectados</strong></span></div><div className="step"><b>3</b><span>Escaneie este código para conectar</span></div><div className="secure-note"><LockKeyhole size={14} /> Suas credenciais ficam protegidas e nunca aparecem no navegador.</div></div></div><footer><span><i className="pulse-dot" /> Aguardando leitura do QR Code</span><button onClick={close}>Cancelar</button></footer></div></div>;
 }
+
